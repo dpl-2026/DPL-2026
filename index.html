@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPL Premier League 2026 - Hub Gateway</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-display { font-family: 'Space Grotesk', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+    <div id="authGate" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center">
+            <h1 class="font-display text-3xl font-bold tracking-wider text-amber-400 mb-2">DPL PREMIER LEAGUE 2026</h1>
+            <p class="text-xs text-slate-400 uppercase tracking-widest mb-6">Enter Authentication Portal Node</p>
+            
+            <div id="loginError" class="hidden mb-4 p-3 bg-red-950/80 border border-red-500 text-red-300 text-xs rounded-lg font-medium"></div>
+
+            <form onsubmit="handleLoginSubmit(event)" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Account Identity Name</label>
+                    <input id="authUsername" type="text" required placeholder="admin1, owner1, owner2..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-400 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">Password Phrase</label>
+                    <input id="authPassword" type="password" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-400 text-white">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-display font-bold py-3.5 rounded-xl transition uppercase tracking-wider text-sm shadow-lg">
+                    Authenticate Session
+                </button>
+            </form>
+            <button onclick="bypassAsSpectator()" class="mt-4 text-xs text-slate-500 hover:text-slate-400 underline block mx-auto">Continue as Public Spectator</button>
+        </div>
+    </div>
+
+    <div id="appContainer" class="hidden">
+        <header class="sticky top-0 z-40 backdrop-blur-md bg-slate-950/80 border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+            <h1 class="font-display text-xl font-bold tracking-wider text-amber-400">DPL LEAGUE HUB</h1>
+            <div class="flex items-center gap-4">
+                <span id="roleBadge" class="bg-slate-900 border border-slate-700 text-xs px-3 py-1 rounded-full text-slate-300 font-semibold uppercase tracking-wider">Loading role...</span>
+                <button onclick="location.reload()" class="text-xs text-red-400 hover:underline">Log Out</button>
+            </div>
+        </header>
+
+        <div id="toast" class="fixed top-24 right-6 z-50 transform translate-x-96 transition-transform duration-300 max-w-md p-4 rounded-xl border hidden shadow-2xl"></div>
+
+        <main class="max-w-[1600px] mx-auto p-6 grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div class="xl:col-span-2 space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span id="p-pos" class="bg-amber-400 text-slate-950 font-display font-extrabold text-xs px-2.5 py-0.5 rounded-md">FW</span>
+                            <h2 id="p-name" class="text-4xl font-display font-bold text-white mt-3">Loading Target Player</h2>
+                            <p class="text-sm text-slate-400 mt-1" id="p-club-rating">Club Info</p>
+                        </div>
+                        <div id="timerBox" class="h-16 w-16 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center font-display">
+                            <span id="timerText" class="text-2xl font-black text-amber-400">15</span>
+                        </div>
+                    </div>
+
+                    <div class="my-6 p-6 bg-slate-950/50 rounded-xl border border-slate-800/60 text-center">
+                        <span class="text-xs text-slate-500 uppercase tracking-widest font-semibold block mb-1">Standing Top Target Bid</span>
+                        <h3 id="live-price" class="text-5xl font-display font-black text-emerald-400">€ 0</h3>
+                        <p class="text-sm text-slate-400 mt-1">Held by: <span id="live-leader" class="text-amber-400 font-semibold">None</span></p>
+                    </div>
+
+                    <div id="biddingActionsArea" class="hidden grid grid-cols-2 gap-4">
+                        <button onclick="fireBid(500000)" class="bg-slate-950 border border-slate-800 hover:border-slate-700 py-4 px-6 rounded-xl font-bold font-display text-left">
+                            <span class="block text-xs text-slate-500 uppercase">Regular Increment</span>+ € 500k
+                        </button>
+                        <button onclick="fireBid(2000000)" class="bg-gradient-to-r from-emerald-600 to-teal-600 py-4 px-6 rounded-xl font-bold font-display text-left text-white shadow-lg">
+                            <span class="block text-xs text-emerald-200/60 uppercase">Aggressive Spike</span>+ € 2.0M
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <h4 class="font-display font-bold text-xs text-slate-400 uppercase tracking-wider mb-3">Live Valuation Stream</h4>
+                    <div id="bidLogs" class="space-y-2 max-h-[200px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <h3 class="font-display font-bold text-base mb-3 text-slate-200">Financial Ledger Balance</h3>
+                    <div id="pursesContainer" class="space-y-3"></div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <h3 class="font-display font-bold text-base mb-3 text-slate-200">Assembled Rosters</h3>
+                    <div id="squadsView" class="space-y-4 max-h-[300px] overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <div id="adminPanelArea" class="hidden space-y-6">
+                <div class="bg-slate-900 border border-amber-500/20 rounded-2xl p-5">
+                    <h3 class="font-display font-bold text-base mb-3 text-amber-400">Pre-Auction Rules</h3>
+                    <div class="space-y-2">
+                        <label class="block text-xs text-slate-400 font-medium">Set Starting Purse (€)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="adminPurseInput" value="100000000" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-amber-400 text-white">
+                            <button onclick="applyPurseLimit()" class="bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-amber-400">Apply</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-amber-500/20 rounded-2xl p-5">
+                    <h3 class="font-display font-bold text-base mb-3 text-amber-400">Clock & Chain Control</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="triggerAdminControl('start')" class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 font-semibold py-2 rounded-lg text-xs hover:bg-emerald-600 hover:text-white transition">Resume Clock</button>
+                        <button onclick="triggerAdminControl('pause')" class="bg-amber-600/20 text-amber-400 border border-amber-500/30 font-semibold py-2 rounded-lg text-xs hover:bg-amber-600 hover:text-white transition">Pause</button>
+                        <button onclick="triggerAdminControl('undo')" class="bg-slate-800 text-slate-300 py-2 rounded-lg text-xs hover:bg-slate-700 transition">↩ Undo Last</button>
+                        <button onclick="triggerAdminControl('skip')" class="bg-slate-800 text-slate-300 py-2 rounded-lg text-xs hover:bg-slate-700 transition">⏭ Skip Player</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <h3 class="font-display font-bold text-base mb-3 text-slate-200">Inject Custom Player</h3>
+                    <form onsubmit="adminAddPlayer(event)" class="space-y-3">
+                        <input type="text" id="add-name" required placeholder="Player Name" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="add-pos" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                                <option value="FW">FW</option><option value="MF">MF</option><option value="DF">DF</option><option value="GK">GK</option>
+                            </select>
+                            <input type="number" id="add-rating" required placeholder="Rating (50-99)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="add-club" required placeholder="Club Name" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                            <input type="number" id="add-base" required placeholder="Base Price" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                        </div>
+                        <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg font-bold text-xs uppercase tracking-wider">Queue Player</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const socket = io();
+        let userRole = 'spectator';
+        let sessionUserId = null;
+        let localLivePrice = 0;
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            socket.emit('attempt_login', {
+                username: document.getElementById('authUsername').value.trim(),
+                password: document.getElementById('authPassword').value
+            });
+        }
+
+        function bypassAsSpectator() {
+            configureSession('spectator', null);
+        }
+
+        socket.on('login_response', (data) => {
+            if (data.success) {
+                configureSession(data.role, data.userId);
+            } else {
+                const errBox = document.getElementById('loginError');
+                errBox.innerText = data.message;
+                errBox.classList.remove('hidden');
+            }
+        });
+
+        function configureSession(role, uid) {
+            userRole = role;
+            sessionUserId = uid;
+            
+            document.getElementById('authGate').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            
+            const badge = document.getElementById('roleBadge');
+            badge.innerText = `Role: ${role} ${uid ? `(${uid})` : ''}`;
+            if (role === 'admin') badge.classList.add('text-amber-400', 'border-amber-400/40');
+
+            // Toggle interface controls based on role permissions
+            if (role === 'admin') document.getElementById('adminPanelArea').classList.remove('hidden');
+            if (role === 'owner') document.getElementById('biddingActionsArea').classList.remove('hidden');
+
+            socket.emit('request_sync');
+        }
+
+        // --- GLOBAL EVENT SYNCS ---
+        socket.on('init_sync', (state) => syncDOM(state));
+        socket.on('auction_state_update', (state) => syncDOM(state));
+
+        socket.on('bid_confirmed', (auction) => {
+            localLivePrice = auction.currentBid;
+            document.getElementById('live-price').innerText = `€ ${localLivePrice.toLocaleString()}`;
+            document.getElementById('live-leader').innerText = auction.highestBidderTeam;
+            renderLogStream(auction.history);
+        });
+
+        socket.on('timer_tick', (sec) => {
+            const el = document.getElementById('timerText');
+            el.innerText = sec;
+            document.getElementById('timerBox').className = sec <= 4 
+                ? "h-16 w-16 rounded-xl bg-red-950 border border-red-500 flex flex-col items-center justify-center animate-pulse"
+                : "h-16 w-16 rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center font-display";
+        });
+
+        socket.on('notification', (d) => showToastNotification(d.type, d.message));
+
+        // --- ACTION SUBMISSIONS ---
+        function fireBid(raise) {
+            socket.emit('place_bid', { ownerId: sessionUserId, amount: localLivePrice + raise });
+        }
+
+        function triggerAdminControl(action) {
+            socket.emit('admin_control', { action });
+        }
+
+        function applyPurseLimit() {
+            const val = document.getElementById('adminPurseInput').value;
+            socket.emit('admin_control', { action: 'set_purse', value: val });
+        }
+
+        function adminAddPlayer(e) {
+            e.preventDefault();
+            socket.emit('admin_add_player', {
+                name: document.getElementById('add-name').value,
+                position: document.getElementById('add-pos').value,
+                rating: document.getElementById('add-rating').value,
+                club: document.getElementById('add-club').value,
+                basePrice: document.getElementById('add-base').value
+            });
+            e.target.reset();
+        }
+
+        // --- DOM RENDER MODIFIERS ---
+        function syncDOM(state) {
+            const auc = state.currentAuction;
+            localLivePrice = auc.currentBid;
+
+            document.getElementById('p-name').innerText = auc.player.name;
+            document.getElementById('p-pos').innerText = auc.player.position;
+            document.getElementById('p-club-rating').innerText = `Rating: ${auc.player.rating} | ${auc.player.club} | Base Price: € ${auc.player.basePrice.toLocaleString()}`;
+            document.getElementById('live-price').innerText = `€ ${auc.currentBid.toLocaleString()}`;
+            document.getElementById('live-leader').innerText = auc.highestBidderTeam;
+
+            renderPurseList(state.owners);
+            renderLogStream(auc.history);
+            renderSquadDistribution(state.owners);
+        }
+
+        function renderPurseList(owners) {
+            const box = document.getElementById('pursesContainer');
+            box.innerHTML = '';
+            for (let id in owners) {
+                box.innerHTML += `
+                    <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-sm text-slate-200">${owners[id].teamName}</p>
+                            <p class="text-[10px] text-slate-500">${owners[id].name}</p>
+                        </div>
+                        <span class="font-mono text-sm text-emerald-400 font-bold">€ ${owners[id].purse.toLocaleString()}</span>
+                    </div>
+                `;
+            }
+        }
+
+        function renderLogStream(history) {
+            const container = document.getElementById('bidLogs');
+            if(!history || history.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-600 py-2 italic text-center">No bids recorded on asset.</p>`;
+                return;
+            }
+            container.innerHTML = history.map(h => `
+                <div class="flex justify-between text-xs p-2 bg-slate-950 rounded border border-slate-800">
+                    <span class="text-slate-500 font-mono">${h.time}</span>
+                    <span class="font-semibold text-amber-400">${h.team}</span>
+                    <span class="font-mono text-emerald-400 font-bold">€ ${h.amount.toLocaleString()}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderSquadDistribution(owners) {
+            const container = document.getElementById('squadsView');
+            container.innerHTML = '';
+            for (let id in owners) {
+                const o = owners[id];
+                const list = o.squad.map(p => `
+                    <div class="bg-slate-950 px-2 py-1.5 rounded border border-slate-800 text-xs flex justify-between">
+                        <span class="text-slate-300 font-medium">${p.name} <b class="text-amber-400 text-[9px]">${p.position}</b></span>
+                        <span class="text-emerald-400 font-mono">€ ${p.finalPrice.toLocaleString()}</span>
+                    </div>
+                `).join('');
+                container.innerHTML += `
+                    <div class="p-3 bg-slate-950/40 rounded-xl border border-slate-800">
+                        <h5 class="text-xs font-bold text-slate-400 mb-2 uppercase">${o.teamName} (${o.squad.length})</h5>
+                        <div class="space-y-1">${list || '<span class="text-[11px] text-slate-600 italic">Empty Roster</span>'}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function showToastNotification(type, msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.className = `fixed top-24 right-6 z-50 p-4 rounded-xl shadow-2xl border text-xs font-semibold transition-all duration-300 block ${
+                type === 'success' ? 'bg-emerald-950 border-emerald-500 text-emerald-300' : 'bg-slate-900 border-slate-700 text-slate-300'
+            }`;
+            toast.classList.remove('translate-x-96');
+            setTimeout(() => toast.classList.add('translate-x-96'), 4000);
+        }
+    </script>
+</body>
+</html>
